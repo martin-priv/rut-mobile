@@ -29,6 +29,7 @@ import {
   setActiveCell,
   setStatusListener,
   updateSettings,
+  simulateOffsetStep,
 } from './src/services/location';
 import { fetchMission, updateCellStatus } from './src/services/api';
 
@@ -41,7 +42,8 @@ export default function App() {
   const [loading, setLoading] = useState(false);
 
   // Settings
-  const [sweepWidth, setSweepWidth] = useState<number>(2.5); // meters
+  const [testSize, setTestSize] = useState<number>(4); // default 4x4m for indoor testing
+  const [sweepWidth, setSweepWidth] = useState<number>(1.5); // meters
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [audioPingsEnabled, setAudioPingsEnabled] = useState(true);
 
@@ -78,17 +80,30 @@ export default function App() {
     }
 
     try {
-      const pos = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-      });
+      let pos;
+      try {
+        pos = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High,
+        });
+      } catch (err) {
+        pos = await Location.getLastKnownPositionAsync();
+      }
 
-      // Create a 40x40m test cell right around user
-      const testCell = createLocalTestCell(pos.coords.latitude, pos.coords.longitude, 40);
+      if (!pos) {
+        throw new Error('Kunde inte fastställa GPS-position inomhus. Prova nära ett fönster.');
+      }
+
+      // Create a test cell around user with selected size (default 4x4m)
+      const testCell = createLocalTestCell(pos.coords.latitude, pos.coords.longitude, testSize);
       setCurrentCell(testCell);
       setActiveCell(testCell);
 
+      // Warning distance: for 4x4m cell, edge is 2.0m away, so warn at 1.0m.
+      const warningDist = testSize <= 6 ? 1.0 : testSize <= 15 ? 2.5 : 4.0;
+
       updateSettings({
         sweepWidthMeters: sweepWidth,
+        boundaryWarningDistance: warningDist,
         voiceGuidance: voiceEnabled,
         audioPings: audioPingsEnabled,
       });
@@ -98,7 +113,7 @@ export default function App() {
         setIsTracking(true);
       }
     } catch (e: any) {
-      Alert.alert('Fel', 'Kunde inte hämta GPS-position: ' + e.message);
+      Alert.alert('Fel', 'Kunde inte starta provpass: ' + e.message);
     } finally {
       setLoading(false);
     }
@@ -196,12 +211,36 @@ export default function App() {
             >
               <Text style={styles.bannerText}>
                 {status.isOutside
-                  ? '⚠️ UTANFÖR RUTAN'
+                  ? `⚠️ UTANFÖR RUTAN (${status.distanceToBoundary} m utanför)`
                   : `✅ Inom rutan (${status.distanceToBoundary} m till gräns)`}
               </Text>
             </View>
 
+            {/* Indoor Simulation Row (Step simulator when testing inside) */}
+            <Text style={styles.subSectionTitle}>🧪 Simulera steg ({testSize}×{testSize} m):</Text>
+            <View style={styles.simRow}>
+              <TouchableOpacity
+                style={styles.simBtn}
+                onPress={() => simulateOffsetStep(0)}
+              >
+                <Text style={styles.simBtnText}>🎯 Mitten (0 m)</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.simBtn}
+                onPress={() => simulateOffsetStep(testSize <= 6 ? 1.4 : testSize * 0.38)}
+              >
+                <Text style={styles.simBtnText}>🚶 Gräns ({testSize <= 6 ? '1.4 m' : Math.round(testSize * 0.38) + ' m'})</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.simBtn}
+                onPress={() => simulateOffsetStep(testSize <= 6 ? 2.5 : testSize * 0.6)}
+              >
+                <Text style={styles.simBtnText}>🏃 Utanför ({testSize <= 6 ? '2.5 m' : Math.round(testSize * 0.6) + ' m'})</Text>
+              </TouchableOpacity>
+            </View>
+
             {/* Audio Feedback Test Buttons */}
+            <Text style={styles.subSectionTitle}>🔊 Ljudtest (hörlurar):</Text>
             <View style={styles.testAudioRow}>
               <TouchableOpacity
                 style={styles.audioTestBtn}
@@ -247,11 +286,36 @@ export default function App() {
           <View>
             {/* Quick Test Card */}
             <View style={styles.card}>
-              <Text style={styles.cardTitle}>🚀 Snabbtest (Trädgård / Skog)</Text>
+              <Text style={styles.cardTitle}>🚀 Snabbtest ({testSize}×{testSize} m)</Text>
               <Text style={styles.cardDesc}>
-                Skapar automatiskt en 40×40 m provruta runt där du står just nu. Perfekt för att
-                testa ljudet i lurarna direkt!
+                Skapar automatiskt en provruta centrerad där du står.
+                Välj 4×4 m för att testa gränser och ljud direkt i vardagsrummet!
               </Text>
+
+              {/* Test Size Selector */}
+              <Text style={styles.settingLabel}>Rutans storlek:</Text>
+              <View style={styles.pillRow}>
+                {[
+                  { size: 4, label: '4×4 m (Inne)' },
+                  { size: 10, label: '10×10 m (Gård)' },
+                  { size: 40, label: '40×40 m (Skog)' },
+                ].map(item => (
+                  <TouchableOpacity
+                    key={item.size}
+                    style={[styles.pill, testSize === item.size && styles.pillActive]}
+                    onPress={() => setTestSize(item.size)}
+                  >
+                    <Text
+                      style={[
+                        styles.pillText,
+                        testSize === item.size && styles.pillTextActive,
+                      ]}
+                    >
+                      {item.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
               <TouchableOpacity
                 style={styles.primaryButton}
@@ -261,7 +325,9 @@ export default function App() {
                 {loading ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.primaryButtonText}>STARTA PROVPASS HÄR</Text>
+                  <Text style={styles.primaryButtonText}>
+                    STARTA {testSize}×{testSize} M PROVPASS HÄR
+                  </Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -298,7 +364,7 @@ export default function App() {
               {/* Sweep Width Selector */}
               <Text style={styles.settingLabel}>Röjsågens arbetsbredd (pensel):</Text>
               <View style={styles.pillRow}>
-                {[1.5, 2.5, 3.5].map(w => (
+                {[1.0, 1.5, 2.5, 3.5].map(w => (
                   <TouchableOpacity
                     key={w}
                     style={[styles.pill, sweepWidth === w && styles.pillActive]}
@@ -546,6 +612,33 @@ const styles = StyleSheet.create({
   bannerText: {
     color: '#f8fafc',
     fontSize: 15,
+    fontWeight: '700',
+  },
+  subSectionTitle: {
+    color: '#94a3b8',
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  simRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
+  simBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#1a2236',
+    borderWidth: 1,
+    borderColor: '#38bdf8',
+    alignItems: 'center',
+  },
+  simBtnText: {
+    color: '#38bdf8',
+    fontSize: 12,
     fontWeight: '700',
   },
   testAudioRow: {

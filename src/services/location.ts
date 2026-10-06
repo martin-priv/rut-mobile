@@ -1,5 +1,6 @@
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
+import * as turf from '@turf/turf';
 import { Cell, WorkSettings, TrackingStatus } from '../types';
 import { checkBoundary, calculateCoverage } from './coverage';
 import {
@@ -47,6 +48,18 @@ export function setActiveCell(cell: Cell | null) {
 
 export function getRecordedPath(): [number, number][] {
   return [...recordedPath];
+}
+
+/**
+ * Manually simulate a step by an offset in meters from cell center.
+ * Useful for indoor testing where GPS cannot move.
+ */
+export async function simulateOffsetStep(metersNorth: number) {
+  if (!activeCell || !activeCell.geometry) return;
+  const center = turf.center(activeCell.geometry as any);
+  const pt = turf.destination(center, metersNorth / 1000, 0, { units: 'kilometers' });
+  const [lon, lat] = pt.geometry.coordinates;
+  await processNewLocation(lat, lon, 0);
 }
 
 /**

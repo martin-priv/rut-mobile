@@ -76,7 +76,7 @@ export function calculateCoverage(
 export function createLocalTestCell(
   lat: number,
   lon: number,
-  sizeMeters: number = 40
+  sizeMeters: number = 4
 ): Cell {
   const center = turf.point([lon, lat]);
   // Offset by half size to place user comfortably inside
