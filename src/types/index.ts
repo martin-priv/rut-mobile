@@ -33,4 +33,6 @@ export interface TrackingStatus {
   pointsRecorded: number;
   heading: number | null;
   pan: number; // -1.0 (Full Left) to +1.0 (Full Right)
+  currentLocation: [number, number] | null; // [latitude, longitude]
+  recordedPath: [number, number][]; // array of [lat, lon]
 }

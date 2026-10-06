@@ -176,7 +176,7 @@ export async function processNewLocation(lat: number, lon: number, heading: numb
     }
   }
 
-  notifyStatus(true, coverage, distanceToBoundary, !isInside, currentHeading, pan);
+  notifyStatus(true, coverage, distanceToBoundary, !isInside, currentHeading, pan, lat, lon);
 }
 
 function notifyStatus(
@@ -185,7 +185,9 @@ function notifyStatus(
   distance: number,
   outside: boolean,
   heading: number | null,
-  pan: number
+  pan: number,
+  lat: number | null = null,
+  lon: number | null = null
 ) {
   if (onStatusChangeCallback) {
     onStatusChangeCallback({
@@ -197,6 +199,8 @@ function notifyStatus(
       pointsRecorded: recordedPath.length,
       heading,
       pan,
+      currentLocation: lat != null && lon != null ? [lat, lon] : null,
+      recordedPath: [...recordedPath],
     });
   }
 }

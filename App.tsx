@@ -33,6 +33,7 @@ import {
   simulateOffsetStep,
 } from './src/services/location';
 import { fetchMission, updateCellStatus } from './src/services/api';
+import { CellRadar } from './src/components/CellRadar';
 
 export default function App() {
   const [isTracking, setIsTracking] = useState(false);
@@ -58,6 +59,8 @@ export default function App() {
     pointsRecorded: 0,
     heading: null,
     pan: 0,
+    currentLocation: null,
+    recordedPath: [],
   });
 
   useEffect(() => {
@@ -204,6 +207,18 @@ export default function App() {
               </View>
             </View>
 
+            {/* Visual Radar Map representing cell and user position */}
+            <CellRadar
+              cell={currentCell}
+              currentLocation={status.currentLocation}
+              heading={status.heading}
+              recordedPath={status.recordedPath}
+              isOutside={status.isOutside}
+              distanceToBoundary={status.distanceToBoundary}
+              boundaryWarningDistance={testSize <= 6 ? 1.2 : testSize <= 18 ? 2.5 : 4.0}
+              sizeMeters={testSize}
+            />
+
             {/* Geofence / Boundary Status */}
             <View
               style={[
@@ -329,7 +344,8 @@ export default function App() {
               <View style={styles.pillRow}>
                 {[
                   { size: 4, label: '4×4 m (Inne)' },
-                  { size: 10, label: '10×10 m (Gård)' },
+                  { size: 15, label: '15×15 m (Ute)' },
+                  { size: 25, label: '25×25 m (Gård)' },
                   { size: 40, label: '40×40 m (Skog)' },
                 ].map(item => (
                   <TouchableOpacity
