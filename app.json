@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "name": "Rut Fält",
+    "slug": "rut-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "se.pappans.rut",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "location",
+          "audio"
+        ],
+        "NSLocationWhenInUseUsageDescription": "Rut behöver din position för att guida dig i din tilldelade ruta.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Rut behöver din position i bakgrunden för att ge ljudsignaler och spåra röjningsytan medan telefonen ligger i fickan.",
+        "NSLocationAlwaysUsageDescription": "Rut behöver din position i bakgrunden för att ge ljudsignaler och spåra röjningsytan medan telefonen ligger i fickan."
+      }
+    },
+    "android": {
+      "package": "se.pappans.rut",
+      "adaptiveIcon": {
+        "backgroundColor": "#161622",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
+        "WAKE_LOCK"
+      ],
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Rut behöver din position i bakgrunden för att ge ljudsignaler i fickan.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ]
+    ],
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
