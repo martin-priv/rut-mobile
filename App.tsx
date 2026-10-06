@@ -20,6 +20,7 @@ import {
   speakCue,
   playBoundaryTick,
   playOutsideWarning,
+  playBackInsideSound,
   playCompletionChime,
 } from './src/services/audio';
 import {
@@ -44,7 +45,7 @@ export default function App() {
   // Settings
   const [testSize, setTestSize] = useState<number>(4); // default 4x4m for indoor testing
   const [sweepWidth, setSweepWidth] = useState<number>(1.5); // meters
-  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [voiceEnabled, setVoiceEnabled] = useState(false); // Pure audio by default
   const [audioPingsEnabled, setAudioPingsEnabled] = useState(true);
 
   // Live status
@@ -98,8 +99,8 @@ export default function App() {
       setCurrentCell(testCell);
       setActiveCell(testCell);
 
-      // Warning distance: for 4x4m cell, edge is 2.0m away, so warn at 1.0m.
-      const warningDist = testSize <= 6 ? 1.0 : testSize <= 15 ? 2.5 : 4.0;
+      // Warning distance: for 4x4m cell, edge is 2.0m away, so warn at 1.2m.
+      const warningDist = testSize <= 6 ? 1.2 : testSize <= 15 ? 2.5 : 4.0;
 
       updateSettings({
         sweepWidthMeters: sweepWidth,
@@ -246,33 +247,33 @@ export default function App() {
                 style={styles.audioTestBtn}
                 onPress={() => playBoundaryTick()}
               >
-                <Text style={styles.audioTestBtnText}>🔔 Klick</Text>
+                <Text style={styles.audioTestBtnText}>🔔 Kant-pip</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.audioTestBtn}
                 onPress={() => playOutsideWarning()}
               >
-                <Text style={styles.audioTestBtnText}>⚠️ Gränston</Text>
+                <Text style={styles.audioTestBtnText}>⚠️ Utanför</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.audioTestBtn}
+                onPress={() => playBackInsideSound()}
+              >
+                <Text style={styles.audioTestBtnText}>✅ Inne igen</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.audioTestBtn}
                 onPress={() => playCompletionChime()}
               >
-                <Text style={styles.audioTestBtnText}>🎉 Pling</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.audioTestBtn}
-                onPress={() => speakCue('Ruta klar, bra jobbat!', true)}
-              >
-                <Text style={styles.audioTestBtnText}>🗣️ Röst</Text>
+                <Text style={styles.audioTestBtnText}>🎉 Klart</Text>
               </TouchableOpacity>
             </View>
 
             {/* Instruction Tip */}
             <View style={styles.pocketTip}>
               <Text style={styles.pocketTipText}>
-                💡 Du kan släcka skärmen och stoppa telefonen i fickan. Ljudsignalerna och
-                talsyntesen guidar dig i lurarna.
+                💡 Stoppa telefonen i fickan med skärmen släckt. Ljudsignalerna guidar dig:
+                tyst i rutan, tätare pip nära gränsen, varningslarm utanför och bekräftelse när du kliver in.
               </Text>
             </View>
 

@@ -3,11 +3,13 @@ import * as Speech from 'expo-speech';
 import {
   generateBoundaryTickWav,
   generateOutsideWarningWav,
+  generateBackInsideWav,
   generateCompletionChimeWav,
 } from '../utils/soundGenerator';
 
 let tickPlayer: AudioPlayer | null = null;
 let outsidePlayer: AudioPlayer | null = null;
+let backInsidePlayer: AudioPlayer | null = null;
 let completePlayer: AudioPlayer | null = null;
 let isAudioInitialized = false;
 
@@ -27,6 +29,7 @@ export async function initAudio(): Promise<void> {
 
     tickPlayer = createAudioPlayer({ uri: generateBoundaryTickWav() });
     outsidePlayer = createAudioPlayer({ uri: generateOutsideWarningWav() });
+    backInsidePlayer = createAudioPlayer({ uri: generateBackInsideWav() });
     completePlayer = createAudioPlayer({ uri: generateCompletionChimeWav() });
 
     isAudioInitialized = true;
@@ -37,11 +40,10 @@ export async function initAudio(): Promise<void> {
 
 /**
  * Plays a proximity tick when near boundary.
- * Throttles minimum 250ms between ticks.
  */
 export async function playBoundaryTick(): Promise<void> {
   const now = Date.now();
-  if (now - lastTickTime < 250) return;
+  if (now - lastTickTime < 180) return;
   lastTickTime = now;
 
   try {
@@ -64,6 +66,19 @@ export async function playOutsideWarning(): Promise<void> {
     if (outsidePlayer) {
       outsidePlayer.seekTo(0).catch(() => {});
       outsidePlayer.play();
+    }
+  } catch (e) {}
+}
+
+/**
+ * Plays an upward confirmation sound when stepping back into the cell.
+ */
+export async function playBackInsideSound(): Promise<void> {
+  try {
+    if (!backInsidePlayer) await initAudio();
+    if (backInsidePlayer) {
+      backInsidePlayer.seekTo(0).catch(() => {});
+      backInsidePlayer.play();
     }
   } catch (e) {}
 }

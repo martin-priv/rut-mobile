@@ -40,19 +40,20 @@ function uint8ToBase64(bytes: Uint8Array): string {
 }
 
 /**
- * 25ms soft boundary proximity tick (440Hz blip with fast decay)
+ * 60ms crisp boundary proximity sonar ping (880Hz / A5 blip).
+ * Designed to cut through hearing protection and engine rumble.
  */
 export function generateBoundaryTickWav(): string {
   const sampleRate = 22050;
-  const duration = 0.035; // 35ms
+  const duration = 0.06; // 60ms
   const numSamples = Math.floor(sampleRate * duration);
   const samples = new Uint8Array(numSamples);
 
   for (let i = 0; i < numSamples; i++) {
     const t = i / sampleRate;
-    const decay = Math.exp(-t * 90);
-    const wave = Math.sin(2 * Math.PI * 660 * t);
-    samples[i] = Math.floor(128 + 110 * wave * decay);
+    const decay = Math.exp(-t * 50);
+    const wave = Math.sin(2 * Math.PI * 880 * t);
+    samples[i] = Math.floor(128 + 120 * wave * decay);
   }
 
   const header = createWavHeader(numSamples, sampleRate);
@@ -64,19 +65,27 @@ export function generateBoundaryTickWav(): string {
 }
 
 /**
- * 120ms low buzz tone for crossing outside cell (160Hz)
+ * 220ms distinct dual-burst alert for crossing outside cell ("BOP-BOP").
+ * 260Hz + 220Hz with harmonics, unmistakably warning you to turn around.
  */
 export function generateOutsideWarningWav(): string {
   const sampleRate = 22050;
-  const duration = 0.15; // 150ms
+  const duration = 0.22; // 220ms
   const numSamples = Math.floor(sampleRate * duration);
   const samples = new Uint8Array(numSamples);
 
   for (let i = 0; i < numSamples; i++) {
     const t = i / sampleRate;
-    const decay = 1 - (i / numSamples) * 0.4;
-    const wave = Math.sin(2 * Math.PI * 160 * t);
-    samples[i] = Math.floor(128 + 100 * wave * decay);
+    let amp = 0;
+    if (t < 0.09) {
+      // First pulse (260Hz)
+      amp = Math.sin(2 * Math.PI * 260 * t) + 0.4 * Math.sin(2 * Math.PI * 520 * t);
+    } else if (t >= 0.12 && t < 0.21) {
+      // Second pulse (220Hz)
+      const t2 = t - 0.12;
+      amp = Math.sin(2 * Math.PI * 220 * t2) + 0.4 * Math.sin(2 * Math.PI * 440 * t2);
+    }
+    samples[i] = Math.floor(128 + Math.max(-127, Math.min(127, amp * 85)));
   }
 
   const header = createWavHeader(numSamples, sampleRate);
@@ -88,7 +97,37 @@ export function generateOutsideWarningWav(): string {
 }
 
 /**
- * 350ms celebration chime for completed cell (523Hz -> 1046Hz)
+ * 180ms upward confirmation chime when stepping back inside the cell (523Hz -> 880Hz).
+ * Gives immediate positive auditory reassurance without needing speech.
+ */
+export function generateBackInsideWav(): string {
+  const sampleRate = 22050;
+  const duration = 0.18; // 180ms
+  const numSamples = Math.floor(sampleRate * duration);
+  const samples = new Uint8Array(numSamples);
+
+  for (let i = 0; i < numSamples; i++) {
+    const t = i / sampleRate;
+    let wave = 0;
+    if (t < 0.08) {
+      wave = Math.sin(2 * Math.PI * 523 * t) * Math.exp(-t * 20);
+    } else {
+      const t2 = t - 0.08;
+      wave = Math.sin(2 * Math.PI * 880 * t2) * Math.exp(-t2 * 20);
+    }
+    samples[i] = Math.floor(128 + 115 * wave);
+  }
+
+  const header = createWavHeader(numSamples, sampleRate);
+  const combined = new Uint8Array(header.length + samples.length);
+  combined.set(header);
+  combined.set(samples, header.length);
+
+  return `data:audio/wav;base64,${uint8ToBase64(combined)}`;
+}
+
+/**
+ * 450ms celebration chime for completed cell (587Hz -> 1175Hz).
  */
 export function generateCompletionChimeWav(): string {
   const sampleRate = 22050;
