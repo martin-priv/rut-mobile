@@ -1,4 +1,4 @@
-import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync, AudioPlayer } from 'expo-audio';
 import * as Speech from 'expo-speech';
 import {
   generateBoundaryTickWav,
@@ -6,9 +6,9 @@ import {
   generateCompletionChimeWav,
 } from '../utils/soundGenerator';
 
-let tickSound: Audio.Sound | null = null;
-let outsideSound: Audio.Sound | null = null;
-let completeSound: Audio.Sound | null = null;
+let tickPlayer: AudioPlayer | null = null;
+let outsidePlayer: AudioPlayer | null = null;
+let completePlayer: AudioPlayer | null = null;
 let isAudioInitialized = false;
 
 let lastSpeakTime = 0;
@@ -19,23 +19,15 @@ export async function initAudio(): Promise<void> {
 
   try {
     // Configure audio mode to keep playing when screen is locked or silent switch is on
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: false,
-      staysActiveInBackground: true,
-      playsInSilentModeIOS: true,
-      shouldDuckAndroid: true,
-      playThroughEarpieceAndroid: false,
+    await setAudioModeAsync({
+      playsInSilentMode: true,
+      shouldPlayInBackground: true,
+      interruptionMode: 'duckOthers',
     });
 
-    const [tickObj, outsideObj, completeObj] = await Promise.all([
-      Audio.Sound.createAsync({ uri: generateBoundaryTickWav() }),
-      Audio.Sound.createAsync({ uri: generateOutsideWarningWav() }),
-      Audio.Sound.createAsync({ uri: generateCompletionChimeWav() }),
-    ]);
-
-    tickSound = tickObj.sound;
-    outsideSound = outsideObj.sound;
-    completeSound = completeObj.sound;
+    tickPlayer = createAudioPlayer({ uri: generateBoundaryTickWav() });
+    outsidePlayer = createAudioPlayer({ uri: generateOutsideWarningWav() });
+    completePlayer = createAudioPlayer({ uri: generateCompletionChimeWav() });
 
     isAudioInitialized = true;
   } catch (err) {
@@ -53,9 +45,10 @@ export async function playBoundaryTick(): Promise<void> {
   lastTickTime = now;
 
   try {
-    if (!tickSound) await initAudio();
-    if (tickSound) {
-      await tickSound.replayAsync();
+    if (!tickPlayer) await initAudio();
+    if (tickPlayer) {
+      tickPlayer.seekTo(0).catch(() => {});
+      tickPlayer.play();
     }
   } catch (e) {
     // Audio replay error fallback
@@ -67,9 +60,10 @@ export async function playBoundaryTick(): Promise<void> {
  */
 export async function playOutsideWarning(): Promise<void> {
   try {
-    if (!outsideSound) await initAudio();
-    if (outsideSound) {
-      await outsideSound.replayAsync();
+    if (!outsidePlayer) await initAudio();
+    if (outsidePlayer) {
+      outsidePlayer.seekTo(0).catch(() => {});
+      outsidePlayer.play();
     }
   } catch (e) {}
 }
@@ -79,9 +73,10 @@ export async function playOutsideWarning(): Promise<void> {
  */
 export async function playCompletionChime(): Promise<void> {
   try {
-    if (!completeSound) await initAudio();
-    if (completeSound) {
-      await completeSound.replayAsync();
+    if (!completePlayer) await initAudio();
+    if (completePlayer) {
+      completePlayer.seekTo(0).catch(() => {});
+      completePlayer.play();
     }
   } catch (e) {}
 }
