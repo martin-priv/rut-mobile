@@ -1,34 +1,48 @@
 import * as turf from '@turf/turf';
 import { Cell } from '../types';
 
+export interface BoundaryCheckResult {
+  isInside: boolean;
+  distanceToBoundary: number;
+  bearingToBoundary: number;
+  bearingToCenter: number;
+}
+
 /**
- * Checks if a coordinate is inside the cell and returns distance to the perimeter.
+ * Checks if a coordinate is inside the cell and returns distance and bearings.
  * coordinates are [latitude, longitude].
  */
 export function checkBoundary(
   cellPolygon: any,
   coord: [number, number]
-): { isInside: boolean; distanceToBoundary: number } {
+): BoundaryCheckResult {
   const pt = turf.point([coord[1], coord[0]]); // [lon, lat]
 
   const isInside = turf.booleanPointInPolygon(pt, cellPolygon);
 
-  // Convert polygon boundary to line for distance calculation
+  // Convert polygon boundary to line for distance and nearest point calculation
   const boundaryLine = turf.polygonToLine(cellPolygon);
   let distanceToBoundary = 0;
+  let bearingToBoundary = 0;
 
   if (boundaryLine) {
-    // If it's a FeatureCollection (e.g. MultiLineString), take the first line
     const targetLine = boundaryLine.type === 'FeatureCollection'
       ? (boundaryLine as any).features[0]
       : boundaryLine;
 
     distanceToBoundary = turf.pointToLineDistance(pt, targetLine as any, { units: 'meters' });
+    const nearestPt = turf.nearestPointOnLine(targetLine as any, pt);
+    bearingToBoundary = turf.bearing(pt, nearestPt);
   }
+
+  const centerPt = turf.center(cellPolygon);
+  const bearingToCenter = turf.bearing(pt, centerPt);
 
   return {
     isInside,
     distanceToBoundary: Math.round(distanceToBoundary * 10) / 10,
+    bearingToBoundary: Math.round(bearingToBoundary),
+    bearingToCenter: Math.round(bearingToCenter),
   };
 }
 

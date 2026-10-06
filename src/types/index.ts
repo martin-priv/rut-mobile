@@ -32,4 +32,5 @@ export interface TrackingStatus {
   isOutside: boolean;
   pointsRecorded: number;
   heading: number | null;
+  pan: number; // -1.0 (Full Left) to +1.0 (Full Right)
 }

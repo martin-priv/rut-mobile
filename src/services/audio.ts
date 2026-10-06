@@ -1,14 +1,16 @@
 import { createAudioPlayer, setAudioModeAsync, AudioPlayer } from 'expo-audio';
 import * as Speech from 'expo-speech';
 import {
-  generateBoundaryTickWav,
-  generateOutsideWarningWav,
+  generateStereoBoundaryTickWav,
+  generateStereoOutsideWarningWav,
   generateBackInsideWav,
   generateCompletionChimeWav,
 } from '../utils/soundGenerator';
 
-let tickPlayer: AudioPlayer | null = null;
-let outsidePlayer: AudioPlayer | null = null;
+const PAN_BUCKETS = [-1.0, -0.67, -0.33, 0.0, 0.33, 0.67, 1.0];
+
+let tickPlayers: AudioPlayer[] = [];
+let outsidePlayers: AudioPlayer[] = [];
 let backInsidePlayer: AudioPlayer | null = null;
 let completePlayer: AudioPlayer | null = null;
 let isAudioInitialized = false;
@@ -16,19 +18,31 @@ let isAudioInitialized = false;
 let lastSpeakTime = 0;
 let lastTickTime = 0;
 
+function getBucketIndex(pan: number): number {
+  const clamped = Math.max(-1.0, Math.min(1.0, pan));
+  return Math.max(0, Math.min(6, Math.round((clamped + 1) * 3)));
+}
+
 export async function initAudio(): Promise<void> {
   if (isAudioInitialized) return;
 
   try {
-    // Configure audio mode to keep playing when screen is locked or silent switch is on
+    // Configure audio mode to keep playing in background with other audio ducked
     await setAudioModeAsync({
       playsInSilentMode: true,
       shouldPlayInBackground: true,
       interruptionMode: 'duckOthers',
     });
 
-    tickPlayer = createAudioPlayer({ uri: generateBoundaryTickWav() });
-    outsidePlayer = createAudioPlayer({ uri: generateOutsideWarningWav() });
+    // Pre-initialize stereo players for each spatial pan bucket
+    tickPlayers = PAN_BUCKETS.map(pan =>
+      createAudioPlayer({ uri: generateStereoBoundaryTickWav(pan) })
+    );
+
+    outsidePlayers = PAN_BUCKETS.map(pan =>
+      createAudioPlayer({ uri: generateStereoOutsideWarningWav(pan) })
+    );
+
     backInsidePlayer = createAudioPlayer({ uri: generateBackInsideWav() });
     completePlayer = createAudioPlayer({ uri: generateCompletionChimeWav() });
 
@@ -39,33 +53,40 @@ export async function initAudio(): Promise<void> {
 }
 
 /**
- * Plays a proximity tick when near boundary.
+ * Plays a proximity tick near boundary with spatial stereo panning.
+ * pan: -1.0 (Left ear) to +1.0 (Right ear), 0.0 (Center).
  */
-export async function playBoundaryTick(): Promise<void> {
+export async function playBoundaryTick(pan: number = 0.0): Promise<void> {
   const now = Date.now();
   if (now - lastTickTime < 180) return;
   lastTickTime = now;
 
   try {
-    if (!tickPlayer) await initAudio();
-    if (tickPlayer) {
-      tickPlayer.seekTo(0).catch(() => {});
-      tickPlayer.play();
+    if (!isAudioInitialized) await initAudio();
+    const idx = getBucketIndex(pan);
+    const player = tickPlayers[idx];
+    if (player) {
+      player.seekTo(0).catch(() => {});
+      player.play();
     }
   } catch (e) {
-    // Audio replay error fallback
+    // Audio replay fallback
   }
 }
 
 /**
- * Plays a warning sound when stepping outside the boundary.
+ * Plays a warning sound when stepping outside the boundary with spatial panning
+ * pointing towards the safe inside zone so user turns towards the sound.
+ * pan: -1.0 (Left ear) to +1.0 (Right ear), 0.0 (Center).
  */
-export async function playOutsideWarning(): Promise<void> {
+export async function playOutsideWarning(pan: number = 0.0): Promise<void> {
   try {
-    if (!outsidePlayer) await initAudio();
-    if (outsidePlayer) {
-      outsidePlayer.seekTo(0).catch(() => {});
-      outsidePlayer.play();
+    if (!isAudioInitialized) await initAudio();
+    const idx = getBucketIndex(pan);
+    const player = outsidePlayers[idx];
+    if (player) {
+      player.seekTo(0).catch(() => {});
+      player.play();
     }
   } catch (e) {}
 }
@@ -75,7 +96,7 @@ export async function playOutsideWarning(): Promise<void> {
  */
 export async function playBackInsideSound(): Promise<void> {
   try {
-    if (!backInsidePlayer) await initAudio();
+    if (!isAudioInitialized) await initAudio();
     if (backInsidePlayer) {
       backInsidePlayer.seekTo(0).catch(() => {});
       backInsidePlayer.play();
@@ -88,7 +109,7 @@ export async function playBackInsideSound(): Promise<void> {
  */
 export async function playCompletionChime(): Promise<void> {
   try {
-    if (!completePlayer) await initAudio();
+    if (!isAudioInitialized) await initAudio();
     if (completePlayer) {
       completePlayer.seekTo(0).catch(() => {});
       completePlayer.play();
@@ -97,12 +118,10 @@ export async function playCompletionChime(): Promise<void> {
 }
 
 /**
- * Speaks a Swedish text prompt in the user's headphones.
- * Throttles non-urgent messages so they don't overlap.
+ * Speaks a Swedish text prompt in the user's headphones (if voice enabled).
  */
 export function speakCue(text: string, force = false): void {
   const now = Date.now();
-  // Don't interrupt unless forced, wait at least 3 seconds between spoken cues
   if (!force && now - lastSpeakTime < 3000) return;
   lastSpeakTime = now;
 
@@ -111,7 +130,7 @@ export function speakCue(text: string, force = false): void {
     Speech.speak(text, {
       language: 'sv-SE',
       pitch: 1.0,
-      rate: 1.05, // slightly brisk for natural field feedback
+      rate: 1.05,
     });
   } catch (err) {
     console.warn('Speech synthesis failed:', err);

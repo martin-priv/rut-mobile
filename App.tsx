@@ -57,6 +57,7 @@ export default function App() {
     isOutside: false,
     pointsRecorded: 0,
     heading: null,
+    pan: 0,
   });
 
   useEffect(() => {
@@ -217,55 +218,85 @@ export default function App() {
               </Text>
             </View>
 
+            {/* Spatial Stereo Direction Indicator */}
+            <View style={styles.stereoCard}>
+              <Text style={styles.stereoLabel}>
+                🧭 RIKTNINGSLJUD I LURARNA:
+              </Text>
+              <Text style={styles.stereoDirectionText}>
+                {status.pan <= -0.25
+                  ? `◀ VÄNSTER ÖRA (${Math.round(Math.abs(status.pan) * 100)}%)`
+                  : status.pan >= 0.25
+                  ? `HÖGER ÖRA ▶ (${Math.round(status.pan * 100)}%)`
+                  : '⏺ RAKT FRAM (BÅDA ÖRON)'}
+              </Text>
+              <View style={styles.stereoBarTrack}>
+                <View
+                  style={[
+                    styles.stereoBarIndicator,
+                    {
+                      left: `${Math.round(((status.pan + 1) / 2) * 92)}%`,
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+
             {/* Indoor Simulation Row (Step simulator when testing inside) */}
             <Text style={styles.subSectionTitle}>🧪 Simulera steg ({testSize}×{testSize} m):</Text>
             <View style={styles.simRow}>
               <TouchableOpacity
                 style={styles.simBtn}
-                onPress={() => simulateOffsetStep(0)}
+                onPress={() => simulateOffsetStep(0, 0)}
               >
                 <Text style={styles.simBtnText}>🎯 Mitten (0 m)</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.simBtn}
-                onPress={() => simulateOffsetStep(testSize <= 6 ? 1.4 : testSize * 0.38)}
+                onPress={() => simulateOffsetStep(testSize <= 6 ? 1.4 : testSize * 0.38, 0)}
               >
                 <Text style={styles.simBtnText}>🚶 Gräns ({testSize <= 6 ? '1.4 m' : Math.round(testSize * 0.38) + ' m'})</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.simBtn}
-                onPress={() => simulateOffsetStep(testSize <= 6 ? 2.5 : testSize * 0.6)}
+                onPress={() => simulateOffsetStep(testSize <= 6 ? 2.5 : testSize * 0.6, 0)}
               >
                 <Text style={styles.simBtnText}>🏃 Utanför ({testSize <= 6 ? '2.5 m' : Math.round(testSize * 0.6) + ' m'})</Text>
               </TouchableOpacity>
             </View>
 
             {/* Audio Feedback Test Buttons */}
-            <Text style={styles.subSectionTitle}>🔊 Ljudtest (hörlurar):</Text>
+            <Text style={styles.subSectionTitle}>🔊 Ljudtest (hörlurar / stereo):</Text>
             <View style={styles.testAudioRow}>
               <TouchableOpacity
                 style={styles.audioTestBtn}
-                onPress={() => playBoundaryTick()}
+                onPress={() => playBoundaryTick(-1.0)}
               >
-                <Text style={styles.audioTestBtnText}>🔔 Kant-pip</Text>
+                <Text style={styles.audioTestBtnText}>◀ Vänster</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.audioTestBtn}
-                onPress={() => playOutsideWarning()}
+                onPress={() => playBoundaryTick(0.0)}
               >
-                <Text style={styles.audioTestBtnText}>⚠️ Utanför</Text>
+                <Text style={styles.audioTestBtnText}>⏺ Mitten</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.audioTestBtn}
+                onPress={() => playBoundaryTick(1.0)}
+              >
+                <Text style={styles.audioTestBtnText}>Höger ▶</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.audioTestBtn}
+                onPress={() => playOutsideWarning(1.0)}
+              >
+                <Text style={styles.audioTestBtnText}>⚠️ Larm Höger</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.audioTestBtn}
                 onPress={() => playBackInsideSound()}
               >
                 <Text style={styles.audioTestBtnText}>✅ Inne igen</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.audioTestBtn}
-                onPress={() => playCompletionChime()}
-              >
-                <Text style={styles.audioTestBtnText}>🎉 Klart</Text>
               </TouchableOpacity>
             </View>
 
@@ -614,6 +645,42 @@ const styles = StyleSheet.create({
     color: '#f8fafc',
     fontSize: 15,
     fontWeight: '700',
+  },
+  stereoCard: {
+    backgroundColor: '#121626',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#242e4c',
+  },
+  stereoLabel: {
+    color: '#94a3b8',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  stereoDirectionText: {
+    color: '#38bdf8',
+    fontSize: 14,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  stereoBarTrack: {
+    width: '100%',
+    height: 6,
+    backgroundColor: '#1e2438',
+    borderRadius: 3,
+    position: 'relative',
+  },
+  stereoBarIndicator: {
+    position: 'absolute',
+    top: -3,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#38bdf8',
   },
   subSectionTitle: {
     color: '#94a3b8',
